@@ -13,13 +13,21 @@
 
 int main(int argc, char **argv)
 {
-  int pipefd[2];
-  int pid;
+  int pipefd[4];
+  int pid, pid2;
 
   char *cat_args[] = {"cat", "scores", NULL};
+  char *sort_args[] = {"sort", NULL, NULL};
   char *grep_args[] = {"grep", "Lakers", NULL};
+  
 
   // make a pipe (fds go in pipefd[0] and pipefd[1])
+  
+  if(argc < 1) {
+    printf("Please enter the grep arg (e.g. \"Lakers or 28\")\n");
+  }
+  
+  grep_args[1] = argv[1]; //grep_args to argv param
 
   pipe(pipefd);
 
@@ -27,20 +35,39 @@ int main(int argc, char **argv)
 
   if (pid == 0)
     {
-      // child gets here and handles "grep Villanova"
+      pid2 = fork();
+      if (pid2 == 0) {
+        dup2(pipefd[0], 0);
+        close(pipefd[3]);
+        close(pipefd[1]);
+        close(pipefd[0]);
+        execvp("sort", sort_args);
+       }
+    
+      else if (pid2 < 0) {
+        printf("error");
+      }
+    
+      else {
+        // child gets here and handles "grep Villanova"
 
       // replace standard input with input part of pipe
 
       dup2(pipefd[0], 0);
+      dup2(pipefd[3], 1);
 
       // close unused hald of pipe
 
       close(pipefd[1]);
+      close(pipefd[2]);
 
       // execute grep
 
       execvp("grep", grep_args);
+      }
+      
     }
+  
   else
     {
       // parent gets here and handles "cat scores"
@@ -52,6 +79,7 @@ int main(int argc, char **argv)
       // close unused unput half of pipe
 
       close(pipefd[0]);
+      close(pipefd[3]);
 
       // execute cat
 
